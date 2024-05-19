@@ -107,11 +107,6 @@ public class KeyframeCameraPlugin extends Plugin
 	public void onGameTick(GameTick event)
 	{
 		if (client.getGameState() != GameState.LOGGED_IN) return;
-		if (prevCameraMode == -1) {
-			prevCameraMode = client.getCameraMode();
-			updatePanel();
-			return;
-		}
 		if (prevCameraMode != client.getCameraMode())
 		{
 			prevCameraMode = client.getCameraMode();
