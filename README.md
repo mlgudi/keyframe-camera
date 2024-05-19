@@ -1,6 +1,12 @@
 # Keyframe Camera
 Create and play camera sequences in RuneLite.
 
+
+
+https://github.com/mlgudi/rl-plugins/assets/46876568/2ec8f1f5-f334-4b0a-bd42-40e5f22dcc59
+
+
+
 ## Usage
 
 You must be logged in with free cam enabled to use the plugin. The side-panel will provide you with a button to enable it. You can press escape to disable free cam and return to normal gameplay.
