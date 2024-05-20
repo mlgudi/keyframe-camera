@@ -25,13 +25,15 @@ public class CameraSequence
     private final ConfigManager configManager;
 
     List<Keyframe> keyframes = new ArrayList<>();
-    List<Long> keyframeStartTimes = new ArrayList<>();
+
+    private int currentKeyframeIndex = 0;
+    private long currentKeyframeStartTime = 0;
 
     private long startTime = 0;
     private long pauseStartTime = 0;
     private long totalPauseTime = 0;
 
-    public CameraSequence(KeyframeCameraPlugin plugin, Client client, KeyframeCameraConfig config, ConfigManager configManager, String name)
+    public CameraSequence(Client client, KeyframeCameraConfig config, ConfigManager configManager, String name)
     {
         this.client = client;
         this.config = config;
@@ -67,21 +69,6 @@ public class CameraSequence
         return elapsedTime;
     }
 
-    private int getKeyframeIndex(long elapsed) {
-        long time = 0;
-
-        for (int i = 0; i < keyframes.size(); i++) {
-            Keyframe keyframe = keyframes.get(i);
-            time += keyframe.getDuration();
-
-            if (time > elapsed) {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
     public void addKeyframe()
     {
         if (client.getGameState() != GameState.LOGGED_IN)
@@ -100,8 +87,6 @@ public class CameraSequence
                 config.defaultKeyframeEase()
             )
         );
-
-        calcKeyframeStartTimes();
     }
 
     public void duplicateKeyframe(int index)
@@ -123,8 +108,6 @@ public class CameraSequence
                 keyframe.getEase()
             )
         );
-
-        calcKeyframeStartTimes();
     }
 
     public void overwriteKeyframe(int index)
@@ -152,7 +135,6 @@ public class CameraSequence
         }
 
         keyframes.remove(index);
-        if (keyframes.size() > 0) calcKeyframeStartTimes();
     }
 
     public void play()
@@ -164,6 +146,7 @@ public class CameraSequence
         configManager.setConfiguration(KeyframeCameraConfig.GROUP, "playing", true);
         startTime = System.currentTimeMillis();
         totalPauseTime = 0;
+        currentKeyframeIndex = 0;
     }
 
     public void stop()
@@ -171,6 +154,7 @@ public class CameraSequence
         startTime = 0;
         pauseStartTime = 0;
         totalPauseTime = 0;
+        currentKeyframeIndex = 0;
         configManager.setConfiguration(KeyframeCameraConfig.GROUP, "playing", false);
         configManager.setConfiguration(KeyframeCameraConfig.GROUP, "paused", false);
     }
@@ -208,26 +192,27 @@ public class CameraSequence
             return;
         }
 
-        long currentElapsed = elapsed();
-        int currentFrameIndex = getKeyframeIndex(currentElapsed);
+        Keyframe currentKeyframe = keyframes.get(currentKeyframeIndex);
 
-        if (currentFrameIndex == -1 || currentFrameIndex >= keyframes.size()) {
-            if (config.loop())
-            {
-                startTime = System.currentTimeMillis();
-                totalPauseTime = 0;
-                currentElapsed = elapsed();
-                currentFrameIndex = getKeyframeIndex(currentElapsed);
+        if (elapsed() >= currentKeyframeStartTime + currentKeyframe.getDuration()) {
+            if (keyframes.get(keyframes.size() - 1) == currentKeyframe) {
+                if (config.loop()) {
+                    startTime = System.currentTimeMillis();
+                    totalPauseTime = 0;
+                    currentKeyframeIndex = 0;
+                    currentKeyframe = keyframes.get(0);
+                } else {
+                    stop();
+                    return;
+                }
             } else {
-                stop();
-                return;
+                currentKeyframe = keyframes.get(keyframes.indexOf(currentKeyframe) + 1);
+                currentKeyframeStartTime = elapsed();
             }
         }
 
-        long keyframeElapsed = currentElapsed - keyframeStartTimes.get(currentFrameIndex);
-
-        Keyframe currentKeyframe = keyframes.get(currentFrameIndex);
-        Keyframe nextKeyframe = currentFrameIndex + 1 < keyframes.size() ? keyframes.get(currentFrameIndex + 1) : null;
+        long keyframeElapsed = elapsed() - currentKeyframeStartTime;
+        Keyframe nextKeyframe = currentKeyframeIndex + 1 < keyframes.size() ? keyframes.get(currentKeyframeIndex + 1) : null;
         Keyframe interpolatedFrame = Ease.interpolate(currentKeyframe, nextKeyframe, keyframeElapsed);
 
         if (client.getCameraMode() != 1)
@@ -239,16 +224,6 @@ public class CameraSequence
         client.setCameraFocalPointZ(interpolatedFrame.getFocalZ());
         client.setCameraPitchTarget((int) interpolatedFrame.getPitch());
         client.setCameraYawTarget((int) interpolatedFrame.getYaw());
-    }
-
-    public void calcKeyframeStartTimes() {
-        long time = 0;
-        keyframeStartTimes.clear();
-
-        for (Keyframe keyframe : keyframes) {
-            keyframeStartTimes.add(time);
-            time += keyframe.getDuration();
-        }
     }
 
     public void moveKeyframe(boolean up, int index)
@@ -267,7 +242,6 @@ public class CameraSequence
 
         Keyframe keyframe = keyframes.remove(index);
         keyframes.add(up ? index - 1 : index + 1, keyframe);
-        calcKeyframeStartTimes();
     }
 
     public void setCameraToKeyframe(Keyframe keyframe)
@@ -306,9 +280,9 @@ public class CameraSequence
         }
     }
 
-    public static CameraSequence load(KeyframeCameraPlugin plugin, Client client, KeyframeCameraConfig config, ConfigManager configManager, String name)
+    public static CameraSequence load(Client client, KeyframeCameraConfig config, ConfigManager configManager, String name)
     {
-        CameraSequence sequence = new CameraSequence(plugin, client, config, configManager, new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime()));
+        CameraSequence sequence = new CameraSequence(client, config, configManager, new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime()));
         Path sequencePath = KeyframeCameraPlugin.SEQUENCE_DIR.resolve(name);
         try {
             List<String> lines = java.nio.file.Files.readAllLines(sequencePath);
@@ -324,7 +298,6 @@ public class CameraSequence
                     EaseType.valueOf(parts[6])
                 ));
             }
-            sequence.calcKeyframeStartTimes();
         } catch (Exception e) {
             log.warn("Failed to load sequence file");
             return null;

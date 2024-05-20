@@ -77,7 +77,7 @@ public class KeyframeCameraPlugin extends Plugin
 		}
 
 		String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime());
-		sequence = new CameraSequence(this, client, config, configManager, timestamp);
+		sequence = new CameraSequence(client, config, configManager, timestamp);
 
 		panel = new CameraControlPanel(this, client, config);
 		navButton = NavigationButton.builder()
@@ -126,7 +126,7 @@ public class KeyframeCameraPlugin extends Plugin
 	}
 
 	public void loadSequence(String name) {
-		sequence = CameraSequence.load(this, client, config, configManager, name);
+		sequence = CameraSequence.load(client, config, configManager, name);
 		updatePanel();
 	}
 
