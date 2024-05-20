@@ -1,7 +1,6 @@
 package com.keyframecamera;
 
 public enum EaseType {
-    CONSTANT,
     LINEAR,
     SINE,
     QUAD,

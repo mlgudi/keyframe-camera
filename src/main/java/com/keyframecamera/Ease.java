@@ -54,8 +54,6 @@ public class Ease {
                 return quintEaseInOut(t);
             case EXPO:
                 return expoEaseInOut(t);
-            case CONSTANT:
-                return 0;
             default:
                 throw new IllegalArgumentException("Unknown easing type: " + ease);
         }

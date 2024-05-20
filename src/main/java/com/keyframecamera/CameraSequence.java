@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.ScriptID;
+import net.runelite.api.VarClientInt;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 
 import java.io.File;
@@ -21,12 +23,17 @@ public class CameraSequence
     @Getter
     @Setter
     private String name;
+
+    @Getter
+    private final KeyframeCameraPlugin plugin;
     private final Client client;
+    private final ClientThread clientThread;
     private final KeyframeCameraConfig config;
     private final ConfigManager configManager;
 
     List<Keyframe> keyframes = new ArrayList<>();
 
+    @Getter
     private int currentKeyframeIndex = 0;
     private long currentKeyframeStartTime = 0;
 
@@ -34,12 +41,19 @@ public class CameraSequence
     private long pauseStartTime = 0;
     private long totalPauseTime = 0;
 
-    public CameraSequence(Client client, KeyframeCameraConfig config, ConfigManager configManager, String name)
+    public CameraSequence(KeyframeCameraPlugin plugin, Client client, ClientThread clientThread, KeyframeCameraConfig config, ConfigManager configManager, String name)
     {
+        this.plugin = plugin;
         this.client = client;
+        this.clientThread = clientThread;
         this.config = config;
         this.configManager = configManager;
         this.name = name;
+    }
+
+    private int getScale()
+    {
+        return client.getVarcIntValue(VarClientInt.CAMERA_ZOOM_FIXED_VIEWPORT);
     }
 
     public List<Keyframe> getKeyframes()
@@ -70,11 +84,11 @@ public class CameraSequence
         return elapsedTime;
     }
 
-    public void addKeyframe()
+    public int addKeyframe()
     {
         if (client.getGameState() != GameState.LOGGED_IN)
         {
-            return;
+            return -1;
         }
 
         keyframes.add(
@@ -85,10 +99,12 @@ public class CameraSequence
                 client.getCameraFocalPointZ(),
                 client.getCameraPitch(),
                 client.getCameraYaw(),
-                client.getScale(),
+                getScale(),
                 config.defaultKeyframeEase()
             )
         );
+
+        return keyframes.size() - 1;
     }
 
     public void duplicateKeyframe(int index)
@@ -125,7 +141,7 @@ public class CameraSequence
                 client.getCameraFocalPointZ(),
                 client.getCameraPitch(),
                 client.getCameraYaw(),
-                client.getScale(),
+                getScale(),
                 keyframe.getEase()
             )
         );
@@ -145,12 +161,13 @@ public class CameraSequence
     {
         if (client.getCameraMode() != 1)
         {
-            client.setCameraMode(1);
+            clientThread.invoke(() -> client.setCameraMode(1));
         }
         configManager.setConfiguration(KeyframeCameraConfig.GROUP, "playing", true);
         startTime = System.currentTimeMillis();
         totalPauseTime = 0;
         currentKeyframeIndex = 0;
+        currentKeyframeStartTime = 0;
     }
 
     public void stop()
@@ -159,6 +176,7 @@ public class CameraSequence
         pauseStartTime = 0;
         totalPauseTime = 0;
         currentKeyframeIndex = 0;
+        currentKeyframeStartTime = 0;
         configManager.setConfiguration(KeyframeCameraConfig.GROUP, "playing", false);
         configManager.setConfiguration(KeyframeCameraConfig.GROUP, "paused", false);
     }
@@ -201,7 +219,6 @@ public class CameraSequence
         if (elapsed() >= currentKeyframeStartTime + currentKeyframe.getDuration()) {
             if (currentKeyframeIndex + 1 >= keyframes.size()) {
                 if (config.loop()) {
-                    log.info("Looping sequence on keyframe " + currentKeyframeIndex + " of " + (keyframes.size() - 1));
                     startTime = System.currentTimeMillis();
                     totalPauseTime = 0;
                     currentKeyframeIndex = 0;
@@ -226,92 +243,102 @@ public class CameraSequence
         {
             client.setCameraMode(1);
         }
-        client.setCameraFocalPointX(interpolatedFrame.getFocalX());
-        client.setCameraFocalPointY(interpolatedFrame.getFocalY());
-        client.setCameraFocalPointZ(interpolatedFrame.getFocalZ());
-        client.setCameraPitchTarget((int) interpolatedFrame.getPitch());
-        client.setCameraYawTarget((int) interpolatedFrame.getYaw());
-        client.runScript(ScriptID.CAMERA_DO_ZOOM, interpolatedFrame.getScale(), interpolatedFrame.getScale());
+
+        setCameraToKeyframe(interpolatedFrame);
     }
 
-    public void moveKeyframe(boolean up, int index)
+    public boolean isPlaying()
+    {
+        return config.playing();
+    }
+
+    public boolean moveKeyframe(boolean up, int index)
     {
         if (index < 0 || index >= keyframes.size()) {
-            return;
+            return false;
         }
 
         if (up && index == 0) {
-            return;
+            return false;
         }
 
         if (!up && index == keyframes.size() - 1) {
-            return;
+            return false;
         }
 
         Keyframe keyframe = keyframes.remove(index);
         keyframes.add(up ? index - 1 : index + 1, keyframe);
+        return true;
     }
 
     public void setCameraToKeyframe(Keyframe keyframe)
     {
-        if (client.getCameraMode() != 1)
-        {
+        if (client.getCameraMode() != 1) {
             client.setCameraMode(1);
         }
-        client.setCameraFocalPointX(keyframe.getFocalX());
-        client.setCameraFocalPointY(keyframe.getFocalY());
-        client.setCameraFocalPointZ(keyframe.getFocalZ());
-        client.setCameraPitchTarget((int) keyframe.getPitch());
-        client.setCameraYawTarget((int) keyframe.getYaw());
-        client.runScript(ScriptID.CAMERA_DO_ZOOM, keyframe.getScale(), keyframe.getScale());
+
+        clientThread.invoke(() -> {
+            client.setCameraFocalPointX(keyframe.getFocalX());
+            client.setCameraFocalPointY(keyframe.getFocalY());
+            client.setCameraFocalPointZ(keyframe.getFocalZ());
+            client.setCameraPitchTarget((int) keyframe.getPitch());
+            client.setCameraYawTarget((int) keyframe.getYaw());
+            client.runScript(ScriptID.CAMERA_DO_ZOOM, keyframe.getScale(), keyframe.getScale());
+        });
+    }
+
+    public void wipe()
+    {
+        configManager.setConfiguration(KeyframeCameraConfig.GROUP, "playing", false);
+        configManager.setConfiguration(KeyframeCameraConfig.GROUP, "paused", false);
+
+        keyframes.clear();
+
+        startTime = 0;
+        pauseStartTime = 0;
+        totalPauseTime = 0;
+        currentKeyframeIndex = 0;
+        currentKeyframeStartTime = 0;
     }
 
     public void save()
     {
         Path sequencePath = KeyframeCameraPlugin.SEQUENCE_DIR.resolve(name + ".txt");
-
-        File file = new File(sequencePath.toString());
-        try {
-            file.createNewFile();
-        } catch (Exception e) {
-            log.warn("Failed to create sequence file");
-            return;
-        }
-
         try {
             StringBuilder kf = new StringBuilder();
             for (Keyframe keyframe : keyframes) {
                 kf.append(keyframe.toString()).append("\n");
             }
-            java.nio.file.Files.write(sequencePath, kf.toString().getBytes());
+            java.nio.file.Files.write(sequencePath, kf.toString().getBytes(), java.nio.file.StandardOpenOption.CREATE, java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
         } catch (Exception e) {
-            log.warn("Failed to write keyframes to sequence file");
+            plugin.sendChatMessage("Failed to save sequence: " + name);
         }
     }
 
-    public static CameraSequence load(Client client, KeyframeCameraConfig config, ConfigManager configManager, String name)
+    public static CameraSequence load(KeyframeCameraPlugin plugin, Client client, ClientThread clientThread, KeyframeCameraConfig config, ConfigManager configManager, String name)
     {
-        CameraSequence sequence = new CameraSequence(client, config, configManager, new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime()));
+        CameraSequence sequence = new CameraSequence(plugin, client, clientThread, config, configManager, new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime()));
         Path sequencePath = KeyframeCameraPlugin.SEQUENCE_DIR.resolve(name);
         try {
             List<String> lines = java.nio.file.Files.readAllLines(sequencePath);
             for (String line : lines) {
                 String[] parts = line.split(",");
                 sequence.keyframes.add(new Keyframe(
-                    Long.parseLong(parts[0]),
-                    Double.parseDouble(parts[1]),
-                    Double.parseDouble(parts[2]),
-                    Double.parseDouble(parts[3]),
-                    Double.parseDouble(parts[4]),
-                    Double.parseDouble(parts[5]),
-                    Integer.parseInt(parts[6]),
-                    EaseType.valueOf(parts[6])
+                        Long.parseLong(parts[0]),
+                        Double.parseDouble(parts[1]),
+                        Double.parseDouble(parts[2]),
+                        Double.parseDouble(parts[3]),
+                        Double.parseDouble(parts[4]),
+                        Double.parseDouble(parts[5]),
+                        Integer.parseInt(parts[6]),
+                        EaseType.valueOf(parts[7])
                 ));
             }
         } catch (Exception e) {
-            log.warn("Failed to load sequence file");
-            return null;
+            plugin.sendChatMessage("Failed to load sequence: " + name);
+            return plugin.getSequence();
         }
+
         return sequence;
     }
 }

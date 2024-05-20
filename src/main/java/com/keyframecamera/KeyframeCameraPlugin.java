@@ -8,6 +8,7 @@ import com.keyframecamera.panel.CameraControlPanel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.events.BeforeRender;
@@ -77,7 +78,7 @@ public class KeyframeCameraPlugin extends Plugin
 		}
 
 		String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime());
-		sequence = new CameraSequence(client, config, configManager, timestamp);
+		sequence = new CameraSequence(this, client, clientThread, config, configManager, timestamp);
 
 		panel = new CameraControlPanel(this, client, config);
 		navButton = NavigationButton.builder()
@@ -99,7 +100,7 @@ public class KeyframeCameraPlugin extends Plugin
 	public void onGameStateChanged(GameStateChanged event) {
 		if (panel == null) return;
 		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.LOGGED_IN) {
-			updatePanel();
+			redrawPanel();
 		}
 	}
 
@@ -110,24 +111,34 @@ public class KeyframeCameraPlugin extends Plugin
 		if (prevCameraMode != client.getCameraMode())
 		{
 			prevCameraMode = client.getCameraMode();
-			updatePanel();
+			redrawPanel();
 		}
 	}
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged event) {
 		if (event.getGroup().equals(KeyframeCameraConfig.GROUP) && (event.getKey().equals("playing") || event.getKey().equals("paused"))) {
-			updatePanel();
+			redrawPanel();
 		}
 	}
 
-	public void updatePanel() {
-		SwingUtilities.invokeLater(() -> panel.updateUI());
+	public void redrawPanel() {
+		SwingUtilities.invokeLater(() -> {
+			panel.updatePanel();
+		});
 	}
 
 	public void loadSequence(String name) {
-		sequence = CameraSequence.load(client, config, configManager, name);
-		updatePanel();
+		sequence = CameraSequence.load(this, client, clientThread, config, configManager, name);
+		SwingUtilities.invokeLater(() ->  {
+			panel.updatePanel(true);
+		});
+	}
+
+	public void sendChatMessage(String message) {
+		clientThread.invoke(() -> {
+			if (client.getGameState() == GameState.LOGGED_IN) client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
+		});
 	}
 
 	@Subscribe
