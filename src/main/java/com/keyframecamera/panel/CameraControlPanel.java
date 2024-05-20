@@ -2,18 +2,19 @@ package com.keyframecamera.panel;
 
 import com.formdev.flatlaf.icons.FlatFileViewDirectoryIcon;
 import com.formdev.flatlaf.icons.FlatFileViewFloppyDriveIcon;
-import com.keyframecamera.KeyframeCameraConfig;
-import com.keyframecamera.KeyframeCameraPlugin;
-import com.keyframecamera.CameraSequence;
+import com.keyframecamera.*;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.client.ui.ColorScheme;
+import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.ImageUtil;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Paths;
 
@@ -31,11 +32,21 @@ public class CameraControlPanel extends PluginPanel {
     private static final ImageIcon PLAY_ICON;
     private static final ImageIcon PAUSE_ICON;
     private static final ImageIcon STOP_ICON;
+    private static final ImageIcon OVERWRITE_ICON;
+    private static final ImageIcon DUPLICATE_ICON;
+    private static final ImageIcon UP_ICON;
+    private static final ImageIcon DOWN_ICON;
+    private static final ImageIcon DELETE_ICON;
 
     static {
         PLAY_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "play.png"));
         PAUSE_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "pause.png"));
         STOP_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "stop.png"));
+        OVERWRITE_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "overwrite.png"));
+        DUPLICATE_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "duplicate.png"));
+        UP_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "up.png"));
+        DOWN_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "down.png"));
+        DELETE_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "delete.png"));
     }
 
     public CameraControlPanel(KeyframeCameraPlugin plugin, Client client, KeyframeCameraConfig config) {
@@ -227,22 +238,178 @@ public class CameraControlPanel extends PluginPanel {
         keyframesPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         keyframesPanel.setOpaque(false);
 
-        GridBagConstraints c = new GridBagConstraints();
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.gridx = 0;
-        c.gridy = 0;
-        c.weightx = 1;
-        c.weighty = 0;
-        c.insets = new Insets(0, 0, 3, 0);
+        // Create a separate panel for the headers
+        JPanel headerPanel = new JPanel(new GridBagLayout());
+        headerPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        headerPanel.setOpaque(false);
+
+        GridBagConstraints headerConstraints = new GridBagConstraints();
+        headerConstraints.fill = GridBagConstraints.HORIZONTAL;
+        headerConstraints.gridx = 0;
+        headerConstraints.gridy = 0;
+        headerConstraints.weightx = 0.2;
+        headerConstraints.weighty = 0;
+        headerConstraints.insets = new Insets(0, 0, 3, 0);
+
+        JLabel indexHeader = new JLabel("#");
+        indexHeader.setForeground(Color.WHITE);
+        indexHeader.setFont(FontManager.getRunescapeSmallFont());
+        headerPanel.add(indexHeader, headerConstraints);
+
+        headerConstraints.gridx++;
+        headerConstraints.weightx = 0.5;
+
+        JLabel durationHeader = new JLabel("Duration");
+        durationHeader.setForeground(Color.WHITE);
+        durationHeader.setFont(FontManager.getRunescapeSmallFont());
+        headerPanel.add(durationHeader, headerConstraints);
+
+        headerConstraints.gridx++;
+        headerConstraints.weightx = 0.3;
+
+        JLabel easingHeader = new JLabel("Easing");
+        easingHeader.setForeground(Color.WHITE);
+        easingHeader.setFont(FontManager.getRunescapeSmallFont());
+        headerPanel.add(easingHeader, headerConstraints);
+
+        // Create a separate panel for the keyframes
+        JPanel keyframePanel = new JPanel(new GridBagLayout());
+        keyframePanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+        keyframePanel.setOpaque(false);
+
+        GridBagConstraints kc = new GridBagConstraints();
+        kc.fill = GridBagConstraints.HORIZONTAL;
+        kc.gridx = 0;
+        kc.gridy = 0;
+        kc.weightx = 1;
+        kc.insets = new Insets(0, 0, 3, 0);
 
         for (int i = 0; i < sequence.getKeyframes().size(); i++) {
-            KeyframePanel keyframePanel = new KeyframePanel(this, sequence, i, sequence.getKeyframes().size());
-            keyframesPanel.add(keyframePanel, c);
-            c.gridy++;
+            Keyframe keyframe = sequence.getKeyframe(i);
+
+            JPanel headerWrapper = new JPanel(new BorderLayout());
+            headerWrapper.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            headerWrapper.setBorder(new EmptyBorder(0, 5, 0, 2));
+            keyframesPanel.add(headerWrapper, kc);
+
+            JPanel actionPanel = new JPanel(new FlowLayout());
+            actionPanel.setBackground(ColorScheme.DARKER_GRAY_COLOR);
+            actionPanel.setBorder(new EmptyBorder(2, 2, 2, 2));
+
+            int finalI = i;
+            JLabel overwrite = createActionLabel(OVERWRITE_ICON, "Overwrite with current camera position", new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    sequence.overwriteKeyframe(finalI);
+                }
+            });
+            JLabel moveUp = createActionLabel(UP_ICON, "Move keyframe up", new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    sequence.moveKeyframe(true, finalI);
+                }
+            });
+            JLabel moveDown = createActionLabel(DOWN_ICON, "Move keyframe down", new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    sequence.moveKeyframe(false, finalI);
+                }
+            });
+            JLabel duplicate = createActionLabel(DUPLICATE_ICON, "Duplicate keyframe", new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    sequence.duplicateKeyframe(finalI);
+                }
+            });
+            JLabel delete = createActionLabel(DELETE_ICON, "Delete keyframe", new MouseAdapter() {
+                @Override
+                public void mousePressed(MouseEvent e) {
+                    sequence.deleteKeyframe(finalI);
+                }
+            });
+
+            if (finalI == 0) {
+                moveUp.setEnabled(false);
+            }
+            if (finalI == sequence.getKeyframes().size() - 1) {
+                moveDown.setEnabled(false);
+            }
+
+            actionPanel.add(overwrite);
+            actionPanel.add(duplicate);
+            actionPanel.add(moveUp);
+            actionPanel.add(moveDown);
+            actionPanel.add(delete);
+
+            //headerWrapper.add(actionPanel, BorderLayout.EAST);
+            kc.gridy++;
+
+            GridBagConstraints dc = new GridBagConstraints();
+            dc.gridx = 0;
+            dc.gridy = 0;
+            dc.weightx = 0.2;
+            dc.insets = new Insets(0, 0, 3, 0);
+
+            JPanel detailsPanel = new JPanel(new GridBagLayout());
+            detailsPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
+            detailsPanel.setOpaque(false);
+
+            JLabel indexLabel = new JLabel(String.valueOf(i + 1));
+            indexLabel.setForeground(Color.WHITE);
+            indexLabel.setFont(FontManager.getRunescapeSmallFont());
+            detailsPanel.add(indexLabel, dc);
+            dc.gridx++;
+            dc.weightx = 0.5;
+
+            JSpinner durationSpinner = new JSpinner();
+            durationSpinner.setFont(FontManager.getRunescapeSmallFont());
+            Component editor = durationSpinner.getEditor();
+            JFormattedTextField tf = ((JSpinner.DefaultEditor) editor).getTextField();
+            tf.setColumns(8);
+
+            durationSpinner.addChangeListener(e -> {
+                keyframe.setDuration(((Number) durationSpinner.getValue()).longValue());
+            });
+            detailsPanel.add(durationSpinner, dc);
+
+            dc.gridx++;
+            dc.weightx = 0.3;
+
+            JComboBox<EaseType> easeTypeComboBox = new JComboBox<>(EaseType.values());
+            easeTypeComboBox.setFont(FontManager.getRunescapeSmallFont());
+            easeTypeComboBox.setSelectedItem(keyframe.getEase());
+            easeTypeComboBox.addActionListener(e -> keyframe.setEase((EaseType) easeTypeComboBox.getSelectedItem()));
+            detailsPanel.add(easeTypeComboBox, dc);
+
+            keyframePanel.add(detailsPanel, kc);
         }
+
+        GridBagConstraints panelConstraints = new GridBagConstraints();
+        panelConstraints.fill = GridBagConstraints.HORIZONTAL;
+        panelConstraints.gridx = 0;
+        panelConstraints.gridy = 0;
+        panelConstraints.weightx = 1;
+        panelConstraints.insets = new Insets(0, 0, 3, 0);
+
+        keyframesPanel.add(headerPanel, panelConstraints);
+        panelConstraints.gridy++;
+        keyframesPanel.add(keyframePanel, panelConstraints);
 
         panel.add(keyframesPanel, this.c);
         this.c.gridy++;
+    }
+
+    private JLabel createActionLabel(ImageIcon icon, String tooltip, MouseAdapter mouseAdapter) {
+        JLabel label = new JLabel(icon);
+        label.setToolTipText(tooltip);
+        label.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                mouseAdapter.mousePressed(e);
+                updateUI();
+            }
+        });
+        return label;
     }
 
     private boolean loggedIn() {

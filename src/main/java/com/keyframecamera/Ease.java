@@ -29,6 +29,7 @@ public class Ease {
                 lerp(currentKeyframe.getFocalZ(), nextKeyframe.getFocalZ(), interpolationFactor),
                 lerp(currentKeyframe.getPitch(), nextKeyframe.getPitch(), interpolationFactor),
                 lerp(currentYaw, nextYaw, interpolationFactor) % 2048,
+                (int) lerp(currentKeyframe.getScale(), nextKeyframe.getScale(), interpolationFactor),
                 currentKeyframe.getEase()
         );
     }

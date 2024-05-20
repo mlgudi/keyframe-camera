@@ -5,6 +5,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
+import net.runelite.api.ScriptID;
 import net.runelite.client.config.ConfigManager;
 
 import java.io.File;
@@ -84,6 +85,7 @@ public class CameraSequence
                 client.getCameraFocalPointZ(),
                 client.getCameraPitch(),
                 client.getCameraYaw(),
+                client.getScale(),
                 config.defaultKeyframeEase()
             )
         );
@@ -105,6 +107,7 @@ public class CameraSequence
                 keyframe.getFocalZ(),
                 keyframe.getPitch(),
                 keyframe.getYaw(),
+                keyframe.getScale(),
                 keyframe.getEase()
             )
         );
@@ -122,6 +125,7 @@ public class CameraSequence
                 client.getCameraFocalPointZ(),
                 client.getCameraPitch(),
                 client.getCameraYaw(),
+                client.getScale(),
                 keyframe.getEase()
             )
         );
@@ -195,18 +199,21 @@ public class CameraSequence
         Keyframe currentKeyframe = keyframes.get(currentKeyframeIndex);
 
         if (elapsed() >= currentKeyframeStartTime + currentKeyframe.getDuration()) {
-            if (keyframes.get(keyframes.size() - 1) == currentKeyframe) {
+            if (currentKeyframeIndex + 1 >= keyframes.size()) {
                 if (config.loop()) {
+                    log.info("Looping sequence on keyframe " + currentKeyframeIndex + " of " + (keyframes.size() - 1));
                     startTime = System.currentTimeMillis();
                     totalPauseTime = 0;
                     currentKeyframeIndex = 0;
+                    currentKeyframeStartTime = 0;
                     currentKeyframe = keyframes.get(0);
                 } else {
                     stop();
                     return;
                 }
             } else {
-                currentKeyframe = keyframes.get(keyframes.indexOf(currentKeyframe) + 1);
+                currentKeyframeIndex++;
+                currentKeyframe = keyframes.get(currentKeyframeIndex);
                 currentKeyframeStartTime = elapsed();
             }
         }
@@ -224,6 +231,7 @@ public class CameraSequence
         client.setCameraFocalPointZ(interpolatedFrame.getFocalZ());
         client.setCameraPitchTarget((int) interpolatedFrame.getPitch());
         client.setCameraYawTarget((int) interpolatedFrame.getYaw());
+        client.runScript(ScriptID.CAMERA_DO_ZOOM, interpolatedFrame.getScale(), interpolatedFrame.getScale());
     }
 
     public void moveKeyframe(boolean up, int index)
@@ -255,6 +263,7 @@ public class CameraSequence
         client.setCameraFocalPointZ(keyframe.getFocalZ());
         client.setCameraPitchTarget((int) keyframe.getPitch());
         client.setCameraYawTarget((int) keyframe.getYaw());
+        client.runScript(ScriptID.CAMERA_DO_ZOOM, keyframe.getScale(), keyframe.getScale());
     }
 
     public void save()
@@ -295,6 +304,7 @@ public class CameraSequence
                     Double.parseDouble(parts[3]),
                     Double.parseDouble(parts[4]),
                     Double.parseDouble(parts[5]),
+                    Integer.parseInt(parts[6]),
                     EaseType.valueOf(parts[6])
                 ));
             }
