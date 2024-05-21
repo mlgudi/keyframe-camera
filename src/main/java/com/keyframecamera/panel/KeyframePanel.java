@@ -7,7 +7,7 @@ import net.runelite.client.ui.FontManager;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.HashMap;
+import java.util.HashSet;
 
 @Slf4j
 public class KeyframePanel extends JPanel {
@@ -15,7 +15,8 @@ public class KeyframePanel extends JPanel {
     CameraSequence sequence;
     GridBagConstraints c = new GridBagConstraints();
     JPanel keyframes = new JPanel(new GridBagLayout());
-    HashMap<Integer, KeyframeDisplay> displayedKeyframes = new HashMap<>();
+
+    HashSet<String> showingControls = new HashSet<>();
 
     public KeyframePanel(CameraSequence sequence)
     {
@@ -73,45 +74,35 @@ public class KeyframePanel extends JPanel {
         {
             KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, sequence, i);
             keyframes.add(keyframeDisplay, c);
-            displayedKeyframes.put(i, keyframeDisplay);
             c.gridy++;
         }
 
         add(keyframes, c);
     }
 
-    public void addKeyframe(int index)
+    public void toggleShowControls(String id)
     {
-        addKeyframe(index, false);
+        if (showingControls.contains(id))
+        {
+            showingControls.remove(id);
+        }
+        else
+        {
+            showingControls.add(id);
+        }
     }
 
-    public void addKeyframe(int index, boolean showControls)
+    public void addKeyframe(int index)
     {
         c.gridy = index + 2;
         KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, sequence, index);
-        keyframeDisplay.setShowControls(showControls);
-        displayedKeyframes.put(index, keyframeDisplay);
         keyframes.add(keyframeDisplay, c);
-    }
-
-    public void updateKeyframe(int index)
-    {
-        displayedKeyframes.get(index).updateKeyframe();
-    }
-
-    public void updateKeyframesFrom(int index)
-    {
-        for (int i = index; i < sequence.getKeyframes().size(); i++)
-        {
-            updateKeyframe(i);
-        }
     }
 
     public void redrawKeyframes()
     {
         this.sequence = sequence.getPlugin().getSequence();
         keyframes.removeAll();
-        displayedKeyframes.clear();
         c.gridy = 1;
 
         for (int i = 0; i < sequence.getKeyframes().size(); i++)
@@ -124,44 +115,7 @@ public class KeyframePanel extends JPanel {
 
     void moveKeyframe(boolean up, int index)
     {
-        if (!sequence.moveKeyframe(up, index)) return;
-
-        int neighbourIndex = up ? index - 1 : index + 1;
-        KeyframeDisplay keyframe = displayedKeyframes.get(index);
-        KeyframeDisplay neighbour = displayedKeyframes.get(neighbourIndex);
-
-        keyframes.remove(keyframe);
-        keyframes.remove(neighbour);
-
-        displayedKeyframes.remove(neighbourIndex);
-        displayedKeyframes.remove(index);
-
-        addKeyframe(neighbourIndex, keyframe.isShowControls());
-        addKeyframe(index, neighbour.isShowControls());
-
-        updateKeyframe(neighbourIndex);
-        updateKeyframe(index);
-    }
-
-    void deleteKeyframe(int index)
-    {
-        sequence.deleteKeyframe(index);
-        keyframes.remove(displayedKeyframes.get(index));
-
-        for (int i = index + 1; i < displayedKeyframes.size(); i++)
-        {
-            displayedKeyframes.get(i).setIndex(i - 1);
-            displayedKeyframes.put(i - 1, displayedKeyframes.get(i));
-        }
-
-        displayedKeyframes.remove(displayedKeyframes.size() - 1);
-
-        if (index != displayedKeyframes.size() - 1) {
-            updateKeyframesFrom(index);
-        }
-
-        keyframes.revalidate();
-        keyframes.repaint();
+        sequence.moveKeyframe(up, index);
     }
 
 }

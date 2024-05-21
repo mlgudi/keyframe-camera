@@ -130,9 +130,7 @@ public class KeyframeCameraPlugin extends Plugin
 
 	public void loadSequence(String name) {
 		sequence = CameraSequence.load(this, client, clientThread, config, configManager, name);
-		SwingUtilities.invokeLater(() ->  {
-			panel.updatePanel(true);
-		});
+		redrawPanel();
 	}
 
 	public void sendChatMessage(String message) {

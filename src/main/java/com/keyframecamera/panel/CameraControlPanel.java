@@ -117,13 +117,6 @@ public class CameraControlPanel extends PluginPanel {
             int newKeyframeIndex = sequence.addKeyframe();
             if (newKeyframeIndex == -1) return;
             keyframesPanel.addKeyframe(newKeyframeIndex);
-
-            if (newKeyframeIndex == 0) {
-                keyframesPanel.updateKeyframe(0);
-            } else {
-                keyframesPanel.updateKeyframesFrom(newKeyframeIndex - 1);
-            }
-
             updatePanel();
         });
         addKeyframeButton.setEnabled(!config.playing());
@@ -205,14 +198,8 @@ public class CameraControlPanel extends PluginPanel {
 
     public void updatePanel()
     {
-        updatePanel(false);
-    }
-
-    public void updatePanel(boolean newSequence)
-    {
         this.sequence = plugin.getSequence();
-
-        if (newSequence) keyframesPanel.redrawKeyframes();
+        keyframesPanel.redrawKeyframes();
         updateControls();
         revalidate();
         repaint();

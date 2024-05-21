@@ -132,19 +132,12 @@ public class CameraSequence
     public void overwriteKeyframe(int index)
     {
         Keyframe keyframe = keyframes.get(index);
-        keyframes.set(
-            index,
-            new Keyframe(
-                keyframe.getDuration(),
-                client.getCameraFocalPointX(),
-                client.getCameraFocalPointY(),
-                client.getCameraFocalPointZ(),
-                client.getCameraPitch(),
-                client.getCameraYaw(),
-                getScale(),
-                keyframe.getEase()
-            )
-        );
+        keyframe.setFocalX(client.getCameraFocalPointX());
+        keyframe.setFocalY(client.getCameraFocalPointY());
+        keyframe.setFocalZ(client.getCameraFocalPointZ());
+        keyframe.setPitch(client.getCameraPitch());
+        keyframe.setYaw(client.getCameraYaw());
+        keyframe.setScale(getScale());
     }
 
     public void deleteKeyframe(int index)

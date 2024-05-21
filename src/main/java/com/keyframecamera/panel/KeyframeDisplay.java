@@ -46,10 +46,6 @@ public class KeyframeDisplay extends JPanel
     @Setter
     int index;
 
-    @Getter
-    @Setter
-    boolean showControls = false;
-
     public KeyframeDisplay(KeyframePanel parent, CameraSequence sequence, int index)
     {
         super();
@@ -75,8 +71,8 @@ public class KeyframeDisplay extends JPanel
         panel.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                toggleShowDetails();
-                updateKeyframe();
+                parent.toggleShowControls(keyframe.getId());
+                parent.redrawKeyframes();
             }
         });
 
@@ -130,7 +126,7 @@ public class KeyframeDisplay extends JPanel
         c.gridx = 0;
         c.gridy++;
 
-        if (showControls)
+        if (parent.showingControls.contains(keyframe.getId()))
         {
             addControls(panel);
             add(panel, c);
@@ -141,8 +137,7 @@ public class KeyframeDisplay extends JPanel
 
     private Color bgColor()
     {
-        Color bgColor = showControls ? ColorScheme.MEDIUM_GRAY_COLOR : ColorScheme.DARK_GRAY_COLOR;
-        return bgColor;
+        return parent.showingControls.contains(keyframe.getId()) ? ColorScheme.MEDIUM_GRAY_COLOR : ColorScheme.DARK_GRAY_COLOR;
     }
 
     private void addControls(JPanel panel)
@@ -174,18 +169,12 @@ public class KeyframeDisplay extends JPanel
             public void mouseEntered(MouseEvent e) {
                 if (!sequence.isPlaying()) {
                     label.setCursor(new Cursor(Cursor.HAND_CURSOR));
-                    label.setBackground(bgColor().darker());
-                    revalidate();
-                    repaint();
                 }
             }
 
             @Override
             public void mouseExited(MouseEvent e) {
                 label.setCursor(new Cursor(Cursor.DEFAULT_CURSOR));
-                label.setBackground(bgColor());
-                revalidate();
-                repaint();
             }
         });
         return label;
@@ -217,33 +206,34 @@ public class KeyframeDisplay extends JPanel
             @Override
             public void mousePressed(MouseEvent e) {
                 sequence.overwriteKeyframe(index);
-                updateKeyframe();
             }
         });
         JLabel moveUp = createActionLabel(UP_ICON, "Move keyframe up", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 parent.moveKeyframe(true, index);
+                parent.redrawKeyframes();
             }
         });
         JLabel moveDown = createActionLabel(DOWN_ICON, "Move keyframe down", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 parent.moveKeyframe(false, index);
+                parent.redrawKeyframes();
             }
         });
         JLabel duplicate = createActionLabel(DUPLICATE_ICON, "Duplicate keyframe", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 sequence.duplicateKeyframe(index);
-                parent.addKeyframe(sequence.getKeyframes().size() - 1);
-                parent.updateKeyframe(sequence.getKeyframes().size() - 1);
+                parent.redrawKeyframes();
             }
         });
         JLabel delete = createActionLabel(DELETE_ICON, "Delete keyframe", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                parent.deleteKeyframe(index);
+                sequence.deleteKeyframe(index);
+                parent.redrawKeyframes();
             }
         });
 
@@ -269,20 +259,6 @@ public class KeyframeDisplay extends JPanel
         cc.gridx++;
 
         return content;
-    }
-
-    private void toggleShowDetails()
-    {
-        showControls = !showControls;
-    }
-
-    public void updateKeyframe()
-    {
-        this.keyframe = sequence.getKeyframe(index);
-        removeAll();
-        drawPanel();
-        revalidate();
-        repaint();
     }
 
 }
