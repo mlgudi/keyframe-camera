@@ -13,7 +13,6 @@ import java.util.HashMap;
 public class KeyframePanel extends JPanel {
 
     CameraSequence sequence;
-    GridBagConstraints headerConstraints = new GridBagConstraints();
     GridBagConstraints c = new GridBagConstraints();
     JPanel keyframes = new JPanel(new GridBagLayout());
     HashMap<Integer, KeyframeDisplay> displayedKeyframes = new HashMap<>();
@@ -38,32 +37,28 @@ public class KeyframePanel extends JPanel {
         headerPanel.setBackground(ColorScheme.DARK_GRAY_COLOR);
         headerPanel.setOpaque(false);
 
-        headerConstraints.fill = GridBagConstraints.HORIZONTAL;
-        headerConstraints.gridx = 0;
-        headerConstraints.gridy = 0;
-        headerConstraints.weightx = 0.2;
-        headerConstraints.insets = new Insets(0, 0, 3, 0);
+        c.weightx = 0.2;
 
         JLabel indexHeader = new JLabel("#");
         indexHeader.setForeground(Color.WHITE);
         indexHeader.setFont(FontManager.getRunescapeSmallFont());
-        headerPanel.add(indexHeader, headerConstraints);
+        headerPanel.add(indexHeader, c);
 
-        headerConstraints.gridx++;
-        headerConstraints.weightx = 0.5;
+        c.gridx++;
+        c.weightx = 0.5;
 
         JLabel durationHeader = new JLabel("Duration (ms)");
         durationHeader.setForeground(Color.WHITE);
         durationHeader.setFont(FontManager.getRunescapeSmallFont());
-        headerPanel.add(durationHeader, headerConstraints);
+        headerPanel.add(durationHeader, c);
 
-        headerConstraints.gridx++;
-        headerConstraints.weightx = 0.3;
+        c.gridx++;
+        c.weightx = 0.3;
 
         JLabel easingHeader = new JLabel("Easing");
         easingHeader.setForeground(Color.WHITE);
         easingHeader.setFont(FontManager.getRunescapeSmallFont());
-        headerPanel.add(easingHeader, headerConstraints);
+        headerPanel.add(easingHeader, c);
 
         add(headerPanel, c);
 
