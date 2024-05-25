@@ -10,7 +10,6 @@ import net.runelite.api.VarClientInt;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 
-import java.io.File;
 import java.nio.file.Path;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -20,6 +19,7 @@ import java.util.List;
 @Slf4j
 public class CameraSequence
 {
+
     @Getter
     @Setter
     private String name;
@@ -97,8 +97,8 @@ public class CameraSequence
                 client.getCameraFocalPointX(),
                 client.getCameraFocalPointY(),
                 client.getCameraFocalPointZ(),
-                client.getCameraPitch(),
-                client.getCameraYaw(),
+                client.getCameraFpPitch(),
+                client.getCameraFpYaw() % (2 * Math.PI),
                 getScale(),
                 config.defaultKeyframeEase()
             )
@@ -135,8 +135,8 @@ public class CameraSequence
         keyframe.setFocalX(client.getCameraFocalPointX());
         keyframe.setFocalY(client.getCameraFocalPointY());
         keyframe.setFocalZ(client.getCameraFocalPointZ());
-        keyframe.setPitch(client.getCameraPitch());
-        keyframe.setYaw(client.getCameraYaw());
+        keyframe.setPitch(client.getCameraFpPitch());
+        keyframe.setYaw(client.getCameraFpYaw());
         keyframe.setScale(getScale());
     }
 
@@ -264,6 +264,11 @@ public class CameraSequence
         return true;
     }
 
+    public int radiansToJau(double radians) {
+        double adjustedRadians = (radians % (2 * Math.PI) + 2 * Math.PI) % (2 * Math.PI);
+        return (int) Math.round(adjustedRadians * 2048.0 / (2 * Math.PI));
+    }
+
     public void setCameraToKeyframe(Keyframe keyframe)
     {
         if (client.getCameraMode() != 1) {
@@ -274,8 +279,8 @@ public class CameraSequence
             client.setCameraFocalPointX(keyframe.getFocalX());
             client.setCameraFocalPointY(keyframe.getFocalY());
             client.setCameraFocalPointZ(keyframe.getFocalZ());
-            client.setCameraPitchTarget((int) keyframe.getPitch());
-            client.setCameraYawTarget((int) keyframe.getYaw());
+            client.setCameraPitchTarget(radiansToJau(keyframe.getPitch()));
+            client.setCameraYawTarget(radiansToJau(keyframe.getYaw()));
             client.runScript(ScriptID.CAMERA_DO_ZOOM, keyframe.getScale(), keyframe.getScale());
         });
     }
