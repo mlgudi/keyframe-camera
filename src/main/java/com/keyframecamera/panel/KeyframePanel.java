@@ -1,6 +1,8 @@
 package com.keyframecamera.panel;
 
-import com.keyframecamera.CameraSequence;
+import com.keyframecamera.KeyframeCameraPlugin;
+import com.keyframecamera.Playback;
+import com.keyframecamera.Sequence;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
@@ -12,17 +14,21 @@ import java.util.HashSet;
 @Slf4j
 public class KeyframePanel extends JPanel {
 
-    CameraSequence sequence;
+    KeyframeCameraPlugin plugin;
+    Playback playback;
+    Sequence sequence;
     GridBagConstraints c = new GridBagConstraints();
     JPanel keyframes = new JPanel(new GridBagLayout());
 
     HashSet<String> showingControls = new HashSet<>();
 
-    public KeyframePanel(CameraSequence sequence)
+    public KeyframePanel(KeyframeCameraPlugin plugin, Playback playback)
     {
         super();
 
-        this.sequence = sequence;
+        this.plugin = plugin;
+        this.playback = playback;
+        this.sequence = plugin.getSequence();
 
         setLayout(new GridBagLayout());
         setBackground(ColorScheme.DARK_GRAY_COLOR);
@@ -70,9 +76,9 @@ public class KeyframePanel extends JPanel {
         keyframes.setBackground(ColorScheme.DARK_GRAY_COLOR);
         keyframes.setOpaque(false);
 
-        for (int i = 0; i < sequence.getKeyframes().size(); i++)
+        for (int i = 0; i < sequence.size(); i++)
         {
-            KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, sequence, i);
+            KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, plugin, sequence.get(i));
             keyframes.add(keyframeDisplay, c);
             c.gridy++;
         }
@@ -95,27 +101,22 @@ public class KeyframePanel extends JPanel {
     public void addKeyframe(int index)
     {
         c.gridy = index + 2;
-        KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, sequence, index);
+        KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, plugin, sequence.get(index));
         keyframes.add(keyframeDisplay, c);
     }
 
     public void redrawKeyframes()
     {
-        this.sequence = sequence.getPlugin().getSequence();
+        this.sequence = plugin.getSequence();
         keyframes.removeAll();
         c.gridy = 1;
 
-        for (int i = 0; i < sequence.getKeyframes().size(); i++)
+        for (int i = 0; i < sequence.size(); i++)
         {
             addKeyframe(i);
         }
         revalidate();
         repaint();
-    }
-
-    void moveKeyframe(boolean up, int index)
-    {
-        sequence.moveKeyframe(up, index);
     }
 
 }

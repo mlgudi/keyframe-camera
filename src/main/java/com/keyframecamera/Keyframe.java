@@ -8,7 +8,6 @@ import java.util.UUID;
 public class Keyframe
 {
     private String id;
-    private long duration;
     private double focalX;
     private double focalY;
     private double focalZ;
@@ -17,10 +16,9 @@ public class Keyframe
     private int scale;
     private EaseType ease;
 
-    public Keyframe(long duration, double focalX, double focalY, double focalZ, double pitch, double yaw, int scale, EaseType ease)
+    public Keyframe(double focalX, double focalY, double focalZ, double pitch, double yaw, int scale, EaseType ease)
     {
         this.id = UUID.randomUUID().toString();
-        this.duration = duration;
         this.focalX = focalX;
         this.focalY = focalY;
         this.focalZ = focalZ;
@@ -30,18 +28,26 @@ public class Keyframe
         this.ease = ease;
     }
 
+    private static final double RADIANS_TO_JAU_FACTOR = 2048.0 / (2 * Math.PI);
+    public static int radiansToJau(double radians) {
+        return (int) Math.round(radians * RADIANS_TO_JAU_FACTOR) % 2048;
+    }
+
+    @Override
+    public int hashCode() { return id.hashCode(); }
+
     public String toString()
     {
-        return String.format(
-                "%d,%f,%f,%f,%f,%f,%d,%s",
-                duration,
-                focalX,
-                focalY,
-                focalZ,
-                pitch,
-                yaw,
-                scale,
-                ease
-        );
+        return "Keyframe{" +
+                "id='" + id + '\'' +
+                ", focalX=" + focalX +
+                ", focalY=" + focalY +
+                ", focalZ=" + focalZ +
+                ", pitch=" + pitch +
+                ", yaw=" + yaw +
+                ", scale=" + scale +
+                ", ease=" + ease +
+                '}';
     }
+
 }

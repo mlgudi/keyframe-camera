@@ -19,8 +19,9 @@ import java.nio.file.Paths;
 public class CameraControlPanel extends PluginPanel {
 
     private final KeyframeCameraPlugin plugin;
+    private final Playback playback;
     private final Client client;
-    private CameraSequence sequence;
+    private Sequence sequence;
     private final KeyframeCameraConfig config;
 
     private final GridBagConstraints c = new GridBagConstraints();
@@ -48,9 +49,10 @@ public class CameraControlPanel extends PluginPanel {
         STOP_ICON = new ImageIcon(ImageUtil.loadImageResource(KeyframeCameraPlugin.class, "stop.png"));
     }
 
-    public CameraControlPanel(KeyframeCameraPlugin plugin, Client client, KeyframeCameraConfig config) {
+    public CameraControlPanel(KeyframeCameraPlugin plugin, Playback playback, Client client, KeyframeCameraConfig config) {
         super();
         this.plugin = plugin;
+        this.playback = playback;
         this.client = client;
         this.config = config;
         this.sequence = plugin.getSequence();
@@ -72,7 +74,7 @@ public class CameraControlPanel extends PluginPanel {
         contentPanel.setLayout(new GridBagLayout());
         add(contentPanel, BorderLayout.CENTER);
 
-        keyframesPanel = new KeyframePanel(sequence);
+        keyframesPanel = new KeyframePanel(plugin, playback);
 
         addControls();
         contentPanel.add(keyframesPanel, c);
@@ -114,7 +116,7 @@ public class CameraControlPanel extends PluginPanel {
 
         addKeyframeButton.setText("Add Keyframe");
         addKeyframeButton.addActionListener(e -> {
-            int newKeyframeIndex = sequence.addKeyframe();
+            int newKeyframeIndex = plugin.add();
             if (newKeyframeIndex == -1) return;
             keyframesPanel.addKeyframe(newKeyframeIndex);
             updatePanel();
@@ -133,9 +135,9 @@ public class CameraControlPanel extends PluginPanel {
         playButton.addActionListener(e -> {
             if (config.paused())
             {
-                sequence.togglePause();
+                playback.togglePause();
             } else {
-                sequence.play();
+                playback.play();
             }
         });
         playButton.setEnabled((!config.playing() || config.paused()) && sequence.getKeyframes().size() >= 2 && loggedIn());
@@ -144,14 +146,14 @@ public class CameraControlPanel extends PluginPanel {
 
     private void addPauseButton(JPanel panel) {
         pauseButton.setIcon(PAUSE_ICON);
-        pauseButton.addActionListener(e -> sequence.togglePause());
+        pauseButton.addActionListener(e -> playback.togglePause());
         pauseButton.setEnabled(config.playing() && !config.paused() && loggedIn());
         panel.add(pauseButton);
     }
 
     private void addStopButton(JPanel panel) {
         stopButton.setIcon(STOP_ICON);
-        stopButton.addActionListener(e -> sequence.stop());
+        stopButton.addActionListener(e -> playback.stop());
         stopButton.setEnabled(config.playing() && loggedIn());
         panel.add(stopButton);
     }
@@ -159,7 +161,7 @@ public class CameraControlPanel extends PluginPanel {
     private void addNewButton(JPanel panel) {
         newButton.setIcon(new FlatFileViewFileIcon());
         newButton.addActionListener(e ->  {
-            sequence.wipe();
+            plugin.wipe();
             keyframesPanel.redrawKeyframes();
         });
         panel.add(newButton);
@@ -167,7 +169,7 @@ public class CameraControlPanel extends PluginPanel {
 
     private void addSaveButton(JPanel panel) {
         saveButton.setIcon(new FlatFileViewFloppyDriveIcon());
-        saveButton.addActionListener(e -> sequence.save());
+        saveButton.addActionListener(e -> plugin.save());
         panel.add(saveButton);
     }
 
@@ -189,7 +191,7 @@ public class CameraControlPanel extends PluginPanel {
                         return;
                     }
                 }
-                plugin.loadSequence(Paths.get(selectedFile.getPath()).getFileName().toString());
+                plugin.load(Paths.get(selectedFile.getPath()).getFileName().toString());
             }
         });
 

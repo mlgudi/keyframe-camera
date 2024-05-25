@@ -1,34 +1,30 @@
 package com.keyframecamera;
 
 public class Ease {
-    public static Keyframe interpolate(Keyframe currentKeyframe, Keyframe nextKeyframe, long keyframeElapsed) {
-        double t = (double) keyframeElapsed / currentKeyframe.getDuration();
-
+    public static Keyframe interpolate(Keyframe currentKeyframe, Keyframe nextKeyframe, double t) {
         if (nextKeyframe == null) {
             return currentKeyframe;
         }
 
         double interpolationFactor = calculateEasing(currentKeyframe.getEase(), t);
-
         double currentYaw = currentKeyframe.getYaw();
         double nextYaw = nextKeyframe.getYaw();
 
-        double yawDiff = nextYaw - currentYaw;
+        double yawDiff = Keyframe.radiansToJau(nextYaw - currentYaw);
         if (Math.abs(yawDiff) > 1024) {
             if (yawDiff > 0) {
-                currentYaw += 2048;
+                currentYaw += 2 * Math.PI;
             } else {
-                nextYaw += 2048;
+                nextYaw += 2 * Math.PI;
             }
         }
 
         return new Keyframe(
-                0,
                 lerp(currentKeyframe.getFocalX(), nextKeyframe.getFocalX(), interpolationFactor),
                 lerp(currentKeyframe.getFocalY(), nextKeyframe.getFocalY(), interpolationFactor),
                 lerp(currentKeyframe.getFocalZ(), nextKeyframe.getFocalZ(), interpolationFactor),
                 lerp(currentKeyframe.getPitch(), nextKeyframe.getPitch(), interpolationFactor),
-                lerp(currentYaw, nextYaw, interpolationFactor) % 2048,
+                lerp(currentYaw, nextYaw, interpolationFactor),
                 (int) lerp(currentKeyframe.getScale(), nextKeyframe.getScale(), interpolationFactor),
                 currentKeyframe.getEase()
         );

@@ -1,11 +1,9 @@
 package com.keyframecamera.panel;
 
-import com.keyframecamera.CameraSequence;
 import com.keyframecamera.EaseType;
 import com.keyframecamera.Keyframe;
 import com.keyframecamera.KeyframeCameraPlugin;
-import lombok.Getter;
-import lombok.Setter;
+import com.keyframecamera.Sequence;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.util.ImageUtil;
@@ -39,20 +37,19 @@ public class KeyframeDisplay extends JPanel
     GridBagConstraints c = new GridBagConstraints();
 
     KeyframePanel parent;
-    CameraSequence sequence;
+    KeyframeCameraPlugin plugin;
+    Sequence sequence;
     Keyframe keyframe;
-
-    @Getter
-    @Setter
     int index;
 
-    public KeyframeDisplay(KeyframePanel parent, CameraSequence sequence, int index)
+    public KeyframeDisplay(KeyframePanel parent, KeyframeCameraPlugin plugin, Keyframe keyframe)
     {
         super();
         this.parent = parent;
-        this.sequence = sequence;
-        this.index = index;
-        keyframe = sequence.getKeyframe(index);
+        this.plugin = plugin;
+        this.sequence = plugin.getSequence();
+        this.keyframe = keyframe;
+        this.index = sequence.indexOf(keyframe);
 
         setLayout(new GridBagLayout());
         setOpaque(true);
@@ -87,7 +84,7 @@ public class KeyframeDisplay extends JPanel
 
         c.weightx = 0.2;
 
-        JLabel indexLabel = new JLabel(String.valueOf(index + 1));
+        JLabel indexLabel = new JLabel(String.valueOf( + 1));
         indexLabel.setOpaque(true);
         indexLabel.setBackground(bgColor());
         indexLabel.setVerticalAlignment(SwingConstants.CENTER);
@@ -107,9 +104,9 @@ public class KeyframeDisplay extends JPanel
         Component spinnerEditor = durationSpinner.getEditor();
         JFormattedTextField tf = ((JSpinner.DefaultEditor) spinnerEditor).getTextField();
         tf.setColumns(8);
-        durationSpinner.setValue(keyframe.getDuration());
+        durationSpinner.setValue(sequence.getKeyframeDuration(keyframe));
 
-        durationSpinner.addChangeListener(e -> keyframe.setDuration(((Number) durationSpinner.getValue()).longValue()));
+        durationSpinner.addChangeListener(e -> sequence.setKeyframeDuration(keyframe, ((Number) durationSpinner.getValue()).longValue()));
         details.add(durationSpinner, c);
 
         c.gridx++;
@@ -162,12 +159,12 @@ public class KeyframeDisplay extends JPanel
         label.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                if (!sequence.isPlaying()) mouseAdapter.mousePressed(e);
+                if (!parent.playback.isPlaying()) mouseAdapter.mousePressed(e);
             }
 
             @Override
             public void mouseEntered(MouseEvent e) {
-                if (!sequence.isPlaying()) {
+                if (!parent.playback.isPlaying()) {
                     label.setCursor(new Cursor(Cursor.HAND_CURSOR));
                 }
             }
@@ -198,41 +195,41 @@ public class KeyframeDisplay extends JPanel
         JLabel view = createActionLabel(VIEW_ICON, "Move the camera to this keyframe", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                sequence.setCameraToKeyframe(keyframe);
+                plugin.setCameraToKeyframe(keyframe);
             }
         });
 
         JLabel overwrite = createActionLabel(OVERWRITE_ICON, "Overwrite with current camera state", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                sequence.overwriteKeyframe(index);
+                plugin.overwrite(keyframe);
             }
         });
         JLabel moveUp = createActionLabel(UP_ICON, "Move keyframe up", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                parent.moveKeyframe(true, index);
+                plugin.moveKeyframe(true, keyframe);
                 parent.redrawKeyframes();
             }
         });
         JLabel moveDown = createActionLabel(DOWN_ICON, "Move keyframe down", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                parent.moveKeyframe(false, index);
+                plugin.moveKeyframe(false, keyframe);
                 parent.redrawKeyframes();
             }
         });
         JLabel duplicate = createActionLabel(DUPLICATE_ICON, "Duplicate keyframe", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                sequence.duplicateKeyframe(index);
+                plugin.duplicate(keyframe);
                 parent.redrawKeyframes();
             }
         });
         JLabel delete = createActionLabel(DELETE_ICON, "Delete keyframe", new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
-                sequence.deleteKeyframe(index);
+                plugin.delete(keyframe);
                 parent.redrawKeyframes();
             }
         });
@@ -241,7 +238,7 @@ public class KeyframeDisplay extends JPanel
             moveUp.setEnabled(false);
         }
 
-        if (index == sequence.getKeyframes().size() - 1) {
+        if (index == sequence.size() - 1) {
             moveDown.setEnabled(false);
         }
 
@@ -251,9 +248,15 @@ public class KeyframeDisplay extends JPanel
         cc.gridx++;
         content.add(duplicate, cc);
         cc.gridx++;
-        content.add(moveUp, cc);
+
+        if (index != 0) {
+            content.add(moveUp, cc);
+        }
         cc.gridx++;
-        content.add(moveDown, cc);
+
+        if (index != sequence.size() - 1) {
+            content.add(moveDown, cc);
+        }
         cc.gridx++;
         content.add(delete, cc);
         cc.gridx++;
