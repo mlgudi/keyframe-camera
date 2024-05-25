@@ -84,7 +84,7 @@ public class KeyframeDisplay extends JPanel
 
         c.weightx = 0.2;
 
-        JLabel indexLabel = new JLabel(String.valueOf( + 1));
+        JLabel indexLabel = new JLabel(String.valueOf(index + 1));
         indexLabel.setOpaque(true);
         indexLabel.setBackground(bgColor());
         indexLabel.setVerticalAlignment(SwingConstants.CENTER);
