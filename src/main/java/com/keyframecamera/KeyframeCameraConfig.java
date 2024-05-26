@@ -33,8 +33,8 @@ public interface KeyframeCameraConfig extends Config
 
 	@ConfigItem(
 			keyName = "loop",
-			name = "Loop",
-			description = "Should the camera sequence loop?",
+		name = "Loop by Default",
+		description = "Should new sequences loop by default?",
 			position = 3
 	)
 	default boolean loop()

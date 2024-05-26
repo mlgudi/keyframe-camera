@@ -5,9 +5,11 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import lombok.Getter;
+import lombok.Setter;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
 import net.runelite.api.VarClientInt;
+import net.runelite.api.WorldView;
 
 public class Sequence
 {
@@ -18,6 +20,22 @@ public class Sequence
 	private final List<Keyframe> keyframes = new ArrayList<>();
 	private final List<Long> keyframeTimestamps = new ArrayList<>();
 	private final HashMap<Keyframe, Integer> keyframeIndexMap = new HashMap<>();
+
+	@Getter
+	@Setter
+	private boolean preserveLocation = true;
+
+	@Getter
+	@Setter
+	private int worldViewId;
+
+	@Getter
+	@Setter
+	private int baseX;
+
+	@Getter
+	@Setter
+	private int baseZ;
 
 	public Sequence(Client client, KeyframeCameraConfig config)
 	{
@@ -85,17 +103,31 @@ public class Sequence
 			return -1;
 		}
 
-		add(
-			new Keyframe(
-				client.getCameraFocalPointX(),
-				client.getCameraFocalPointY(),
-				client.getCameraFocalPointZ(),
-				client.getCameraFpPitch(),
-				client.getCameraFpYaw(),
-				getScale(),
-				config.defaultKeyframeEase()
-			)
+		WorldView worldView = client.getTopLevelWorldView();
+		if (baseX == 0 || baseZ == 0)
+		{
+			worldViewId = worldView.getId();
+			baseX = worldView.getBaseX();
+			baseZ = worldView.getBaseY();
+		}
+
+		Keyframe keyframe = new Keyframe(
+			client.getCameraFocalPointX(),
+			client.getCameraFocalPointY(),
+			client.getCameraFocalPointZ(),
+			client.getCameraFpPitch(),
+			client.getCameraFpYaw(),
+			getScale(),
+			config.defaultKeyframeEase()
 		);
+
+		int xOff = baseX - worldView.getBaseX();
+		int zOff = baseZ - worldView.getBaseY();
+
+		keyframe.setFocalX(keyframe.getFocalX() - (xOff * 128));
+		keyframe.setFocalZ(keyframe.getFocalZ() - (zOff * 128));
+
+		add(keyframe);
 
 		return keyframes.size() - 1;
 	}
@@ -132,7 +164,7 @@ public class Sequence
 		int indexB = indexOf(b);
 
 		long timestampA = keyframeTimestamps.get(indexA);
-		long durationB = getKeyframeDuration(b);
+		long durationB = isLast(b) ? getTimestamp(b) - timestampA : getKeyframeDuration(b);
 		keyframeTimestamps.set(indexB, timestampA + durationB);
 
 		Collections.swap(keyframes, indexA, indexB);

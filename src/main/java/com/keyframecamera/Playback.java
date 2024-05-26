@@ -1,9 +1,11 @@
 package com.keyframecamera;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
 import net.runelite.api.ScriptID;
+import net.runelite.api.WorldView;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 
@@ -26,6 +28,10 @@ public class Playback
     private long pauseStartTime = 0;
     private long totalPauseTime = 0;
 
+	@Getter
+	@Setter
+	private boolean loop;
+
     public Playback(KeyframeCameraPlugin plugin, KeyframeCameraConfig config, ConfigManager configManager, Client client, ClientThread clientThread)
     {
         this.plugin = plugin;
@@ -34,6 +40,7 @@ public class Playback
         this.configManager = configManager;
         this.client = client;
         this.clientThread = clientThread;
+		loop = config.loop();
     }
 
     public boolean isPlaying() { return config.playing(); }
@@ -113,10 +120,12 @@ public class Playback
 
         if (sequence.isLast(currentKeyframe) && isPlaying())
         {
-            if (config.loop()) {
+			if (loop)
+			{
                 resetPlayback();
             } else {
                 stop();
+				return;
             }
         }
 
@@ -147,10 +156,49 @@ public class Playback
 			client.setCameraMode(1);
 		}
 
+		double focalX = keyframe.getFocalX();
+		double focalZ = keyframe.getFocalZ();
+
+		if (sequence.isPreserveLocation())
+		{
+			WorldView worldView = client.getTopLevelWorldView();
+			int baseX = worldView.getBaseX();
+			int baseZ = worldView.getBaseY();
+
+			int xOff = sequence.getBaseX() - baseX;
+			int zOff = sequence.getBaseZ() - baseZ;
+
+			double newX = (focalX / 128) + xOff;
+			double newZ = (focalZ / 128) + zOff;
+
+			boolean xInBounds = baseX + worldView.getSizeX() >= baseX + newX;
+			boolean zInBounds = baseZ + worldView.getSizeY() >= baseZ + newZ;
+
+			xInBounds = xInBounds && baseX + newX >= baseX;
+			zInBounds = zInBounds && baseZ + newZ >= baseZ;
+
+			plugin.sendChatMessage("xOff: " + xOff + ", zOff: " + zOff);
+			plugin.sendChatMessage("New x: " + newX + ", New z: " + newZ);
+			plugin.sendChatMessage("xInBounds: " + xInBounds + ", zInBounds: " + zInBounds);
+
+			if (xInBounds && zInBounds)
+			{
+				focalX = newX * 128;
+				focalZ = newZ * 128;
+			}
+			else
+			{
+				plugin.sendChatMessage("Failed to preserve location: out of bounds.");
+			}
+		}
+
+		final double finalFocalX = focalX;
+		final double finalFocalZ = focalZ;
+
 		clientThread.invoke(() -> {
-			client.setCameraFocalPointX(keyframe.getFocalX());
+			client.setCameraFocalPointX(finalFocalX);
 			client.setCameraFocalPointY(keyframe.getFocalY());
-			client.setCameraFocalPointZ(keyframe.getFocalZ());
+			client.setCameraFocalPointZ(finalFocalZ);
 			client.setCameraPitchTarget(Keyframe.radiansToJau(keyframe.getPitch()));
 			client.setCameraYawTarget(Keyframe.radiansToJau(keyframe.getYaw()) % 2047);
 			client.runScript(ScriptID.CAMERA_DO_ZOOM, keyframe.getScale(), keyframe.getScale());

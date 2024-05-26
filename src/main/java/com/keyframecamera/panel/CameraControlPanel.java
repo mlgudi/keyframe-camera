@@ -17,6 +17,7 @@ import java.nio.file.Paths;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -48,6 +49,9 @@ public class CameraControlPanel extends PluginPanel
 	private final JButton loadButton = new JButton();
 	private final JButton addKeyframeButton = new JButton();
 	private final JButton cameraModeButton = new JButton();
+
+	private final JCheckBox preserveLocationCheckbox = new JCheckBox("Preserve Location");
+	private final JCheckBox loopCheckbox = new JCheckBox("Loop");
 
 	private final KeyframePanel keyframesPanel;
 	private static final ImageIcon PLAY_ICON;
@@ -125,6 +129,28 @@ public class CameraControlPanel extends PluginPanel
 		addLoadButton(playbackControls);
 
 		controlsPanel.add(playbackControls, c);
+		c.gridy++;
+
+		preserveLocationCheckbox.setSelected(sequence.isPreserveLocation());
+		preserveLocationCheckbox.addActionListener(e -> {
+			sequence.setPreserveLocation(preserveLocationCheckbox.isSelected());
+			updatePanel();
+		});
+		preserveLocationCheckbox.setToolTipText(
+			"Attempts to play back the sequence in the same location regardless of player movement.\n" +
+				"This will only work if the original keyframe locations are still in the scene."
+		);
+
+		controlsPanel.add(preserveLocationCheckbox, c);
+		c.gridy++;
+
+		loopCheckbox.setSelected(config.loop());
+		loopCheckbox.addActionListener(e -> {
+			playback.setLoop(loopCheckbox.isSelected());
+			updatePanel();
+		});
+
+		controlsPanel.add(loopCheckbox, c);
 		c.gridy++;
 
 		addKeyframeButton.setText("Add Keyframe");

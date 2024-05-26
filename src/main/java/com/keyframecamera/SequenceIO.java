@@ -11,6 +11,10 @@ public class SequenceIO
     {
         StringBuilder sb = new StringBuilder();
 
+		sb.append(sequence.getBaseX()).append(",");
+		sb.append(sequence.getBaseZ()).append(",");
+		sb.append(sequence.isPreserveLocation()).append("\n");
+
         for (Keyframe keyframe : sequence.getKeyframes())
         {
             sb.append(sequence.getTimestamp(keyframe)).append(",");
@@ -30,8 +34,16 @@ public class SequenceIO
     {
 		Sequence sequence = new Sequence(client, config);
 
-        for (String line : data.split("\n")) {
-            String[] parts = line.split(",");
+		String[] lines = data.split("\n");
+
+		String[] base = lines[0].split(",");
+		sequence.setBaseX(Integer.parseInt(base[0]));
+		sequence.setBaseZ(Integer.parseInt(base[1]));
+		sequence.setPreserveLocation(Boolean.parseBoolean(base[2]));
+
+		for (int i = 1; i < lines.length; i++)
+		{
+			String[] parts = lines[i].split(",");
             long ms = Long.parseLong(parts[0]);
             double focalX = Double.parseDouble(parts[1]);
             double focalY = Double.parseDouble(parts[2]);
