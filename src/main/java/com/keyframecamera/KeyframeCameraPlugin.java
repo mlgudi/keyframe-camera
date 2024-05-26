@@ -1,18 +1,31 @@
 package com.keyframecamera;
 
 import com.google.inject.Provides;
-import javax.inject.Inject;
-import javax.swing.*;
-
 import com.keyframecamera.panel.CameraControlPanel;
+import java.awt.image.BufferedImage;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import javax.inject.Inject;
+import javax.swing.SwingUtilities;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.*;
+import net.runelite.api.ChatMessageType;
+import net.runelite.api.Client;
+import net.runelite.api.GameState;
+import net.runelite.api.ScriptID;
+import net.runelite.api.VarClientInt;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
+import static net.runelite.client.RuneLite.RUNELITE_DIR;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -21,14 +34,6 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
-
-import java.awt.image.BufferedImage;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-
-import static net.runelite.client.RuneLite.RUNELITE_DIR;
 
 @Slf4j
 @PluginDescriptor(
@@ -52,6 +57,9 @@ public class KeyframeCameraPlugin extends Plugin
 
 	@Inject
 	private ConfigManager configManager;
+
+	@Inject
+	private ChatMessageManager chatMessageManager;
 
 	Playback playback;
 
@@ -210,8 +218,18 @@ public class KeyframeCameraPlugin extends Plugin
 
 	public void save()
 	{
-		String name = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime());
-		SequenceIO.save(sequence, SEQUENCE_DIR.resolve(name) + ".txt");
+		String timestamp = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss").format(Calendar.getInstance().getTime());
+		String name = timestamp + ".txt";
+		boolean success = SequenceIO.save(sequence, SEQUENCE_DIR.resolve(name).toString());
+
+		if (success)
+		{
+			sendChatMessage("Sequence saved:" + name);
+		}
+		else
+		{
+			sendChatMessage("Failed to save sequence.");
+		}
 	}
 
 	public void wipe()
@@ -224,7 +242,16 @@ public class KeyframeCameraPlugin extends Plugin
 	{
 		Path sequencePath = KeyframeCameraPlugin.SEQUENCE_DIR.resolve(name);
 		sequence = SequenceIO.load(sequencePath.toString(), config);
-		redrawPanel();
+
+		if (sequence == null)
+		{
+			sendChatMessage("Failed to load sequence.");
+		}
+		else
+		{
+			sendChatMessage("Sequence loaded: " + name);
+			redrawPanel();
+		}
 	}
 
 	@Subscribe
@@ -260,9 +287,23 @@ public class KeyframeCameraPlugin extends Plugin
 	}
 
 	public void sendChatMessage(String message) {
-		clientThread.invoke(() -> {
-			if (client.getGameState() == GameState.LOGGED_IN) client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", message, null);
-		});
+
+		if (client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+
+		final String chatMessage = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT)
+			.append("[Keyframe Camera] ")
+			.append(ChatColorType.NORMAL)
+			.append(message)
+			.build();
+
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.CONSOLE)
+			.runeLiteFormattedMessage(chatMessage)
+			.build());
 	}
 
 	@Subscribe
