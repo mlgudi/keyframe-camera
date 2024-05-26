@@ -177,18 +177,10 @@ public class Playback
 			xInBounds = xInBounds && baseX + newX >= baseX;
 			zInBounds = zInBounds && baseZ + newZ >= baseZ;
 
-			plugin.sendChatMessage("xOff: " + xOff + ", zOff: " + zOff);
-			plugin.sendChatMessage("New x: " + newX + ", New z: " + newZ);
-			plugin.sendChatMessage("xInBounds: " + xInBounds + ", zInBounds: " + zInBounds);
-
 			if (xInBounds && zInBounds)
 			{
 				focalX = newX * 128;
 				focalZ = newZ * 128;
-			}
-			else
-			{
-				plugin.sendChatMessage("Failed to preserve location: out of bounds.");
 			}
 		}
 
