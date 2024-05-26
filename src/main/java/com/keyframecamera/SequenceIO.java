@@ -3,6 +3,7 @@ package com.keyframecamera;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import net.runelite.api.Client;
 
 public class SequenceIO
 {
@@ -25,9 +26,9 @@ public class SequenceIO
         return sb.toString();
     }
 
-    public static Sequence deserialize(String data, KeyframeCameraConfig config)
+	public static Sequence deserialize(String data, Client client, KeyframeCameraConfig config)
     {
-        Sequence sequence = new Sequence(config);
+		Sequence sequence = new Sequence(client, config);
 
         for (String line : data.split("\n")) {
             String[] parts = line.split(",");
@@ -60,11 +61,11 @@ public class SequenceIO
         }
     }
 
-    public static Sequence load(String filename, KeyframeCameraConfig config)
+	public static Sequence load(String filename, Client client, KeyframeCameraConfig config)
     {
         try
         {
-            return deserialize(new String(Files.readAllBytes(Paths.get(filename))), config);
+			return deserialize(new String(Files.readAllBytes(Paths.get(filename))), client, config);
         }
         catch (IOException ignored)
         {

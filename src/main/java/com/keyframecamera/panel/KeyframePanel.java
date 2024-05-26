@@ -3,13 +3,16 @@ package com.keyframecamera.panel;
 import com.keyframecamera.KeyframeCameraPlugin;
 import com.keyframecamera.Playback;
 import com.keyframecamera.Sequence;
+import java.awt.Color;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.util.HashSet;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.FontManager;
-
-import javax.swing.*;
-import java.awt.*;
-import java.util.HashSet;
 
 @Slf4j
 public class KeyframePanel extends JPanel {
@@ -78,7 +81,7 @@ public class KeyframePanel extends JPanel {
 
         for (int i = 0; i < sequence.size(); i++)
         {
-            KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, plugin, sequence.get(i));
+			KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, playback, sequence, i);
             keyframes.add(keyframeDisplay, c);
             c.gridy++;
         }
@@ -101,7 +104,7 @@ public class KeyframePanel extends JPanel {
     public void addKeyframe(int index)
     {
         c.gridy = index + 2;
-        KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, plugin, sequence.get(index));
+		KeyframeDisplay keyframeDisplay = new KeyframeDisplay(this, playback, sequence, index);
         keyframes.add(keyframeDisplay, c);
     }
 

@@ -3,6 +3,7 @@ package com.keyframecamera;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.Client;
+import net.runelite.api.ScriptID;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 
@@ -129,14 +130,31 @@ public class Playback
         }
 
         if (sequence.isLast(currentKeyframe)) {
-            plugin.setCameraToKeyframe(currentKeyframe);
+			setCameraToKeyframe(currentKeyframe);
             return;
         }
 
         double t = sequence.t(currentKeyframe, elapsed());
         Keyframe interpolatedKeyframe = Ease.interpolate(currentKeyframe, sequence.getNext(currentKeyframe), t);
 
-        plugin.setCameraToKeyframe(interpolatedKeyframe);
-    }
+		setCameraToKeyframe(interpolatedKeyframe);
+	}
+
+	public void setCameraToKeyframe(Keyframe keyframe)
+	{
+		if (client.getCameraMode() != 1)
+		{
+			client.setCameraMode(1);
+		}
+
+		clientThread.invoke(() -> {
+			client.setCameraFocalPointX(keyframe.getFocalX());
+			client.setCameraFocalPointY(keyframe.getFocalY());
+			client.setCameraFocalPointZ(keyframe.getFocalZ());
+			client.setCameraPitchTarget(Keyframe.radiansToJau(keyframe.getPitch()));
+			client.setCameraYawTarget(Keyframe.radiansToJau(keyframe.getYaw()) % 2047);
+			client.runScript(ScriptID.CAMERA_DO_ZOOM, keyframe.getScale(), keyframe.getScale());
+		});
+	}
 
 }

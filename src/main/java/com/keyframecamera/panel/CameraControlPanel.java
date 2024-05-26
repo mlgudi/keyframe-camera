@@ -129,7 +129,7 @@ public class CameraControlPanel extends PluginPanel
 
 		addKeyframeButton.setText("Add Keyframe");
 		addKeyframeButton.addActionListener(e -> {
-			int newKeyframeIndex = plugin.add();
+			int newKeyframeIndex = sequence.add();
 			if (newKeyframeIndex == -1)
 			{
 				return;

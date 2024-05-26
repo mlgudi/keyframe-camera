@@ -15,8 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
 import net.runelite.api.GameState;
-import net.runelite.api.ScriptID;
-import net.runelite.api.VarClientInt;
 import net.runelite.api.events.BeforeRender;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.api.events.GameTick;
@@ -85,15 +83,15 @@ public class KeyframeCameraPlugin extends Plugin
 			SEQUENCE_DIR.toFile().mkdir();
 		}
 
-		sequence = new Sequence(config);
+		sequence = new Sequence(client, config);
 		playback = new Playback(this, config, configManager, client, clientThread);
 
 		panel = new CameraControlPanel(this, playback, client, config);
 		navButton = NavigationButton.builder()
-				.tooltip("Keyframe Camera")
-				.icon(ICON)
-				.panel(panel)
-				.build();
+			.tooltip("Keyframe Camera")
+			.icon(ICON)
+			.panel(panel)
+			.build();
 
 		clientToolbar.addNavigation(navButton);
 	}
@@ -104,111 +102,11 @@ public class KeyframeCameraPlugin extends Plugin
 		clientToolbar.removeNavigation(navButton);
 	}
 
-	private int getScale()
+	public boolean freeCamEnabled()
 	{
-		return client.getVarcIntValue(VarClientInt.CAMERA_ZOOM_FIXED_VIEWPORT);
+		return client.getCameraMode() == 1 && client.getGameState() == GameState.LOGGED_IN;
 	}
 
-	public int add()
-	{
-		if (client.getGameState() != GameState.LOGGED_IN)
-		{
-			return -1;
-		}
-
-		sequence.add(
-			new Keyframe(
-				client.getCameraFocalPointX(),
-				client.getCameraFocalPointY(),
-				client.getCameraFocalPointZ(),
-				client.getCameraFpPitch(),
-				client.getCameraFpYaw() % (2 * Math.PI),
-				getScale(),
-				config.defaultKeyframeEase()
-			)
-		);
-
-		return sequence.size() - 1;
-	}
-
-	public void duplicate(Keyframe keyframe)
-	{
-		if (!sequence.contains(keyframe)) return;
-
-		sequence.add(
-			new Keyframe(
-				keyframe.getFocalX(),
-				keyframe.getFocalY(),
-				keyframe.getFocalZ(),
-				keyframe.getPitch(),
-				keyframe.getYaw(),
-				keyframe.getScale(),
-				keyframe.getEase()
-			)
-		);
-	}
-
-	public void overwrite(Keyframe keyframe)
-	{
-		if (!sequence.contains(keyframe)) return;
-		keyframe.setFocalX(client.getCameraFocalPointX());
-		keyframe.setFocalY(client.getCameraFocalPointY());
-		keyframe.setFocalZ(client.getCameraFocalPointZ());
-		keyframe.setPitch(client.getCameraFpPitch());
-		keyframe.setYaw(client.getCameraFpYaw());
-		keyframe.setScale(getScale());
-	}
-
-	public void delete(Keyframe keyframe)
-	{
-		if (!sequence.contains(keyframe)) return;
-		sequence.remove(keyframe);
-	}
-
-	public boolean moveKeyframe(boolean up, Keyframe keyframe)
-	{
-		int index = sequence.indexOf(keyframe);
-		if (index < 0 || index >= sequence.size()) {
-			return false;
-		}
-
-		if (up && index == 0) {
-			return false;
-		}
-
-		if (!up && index == sequence.size() - 1) {
-			return false;
-		}
-
-		if (up)
-		{
-			sequence.swap(sequence.get(index - 1), keyframe);
-		}
-		else
-		{
-			sequence.swap(keyframe, sequence.get(index + 1));
-		}
-
-		return true;
-	}
-
-	public void setCameraToKeyframe(Keyframe keyframe)
-	{
-		if (client.getCameraMode() != 1) {
-			client.setCameraMode(1);
-		}
-
-		clientThread.invoke(() -> {
-			client.setCameraFocalPointX(keyframe.getFocalX());
-			client.setCameraFocalPointY(keyframe.getFocalY());
-			client.setCameraFocalPointZ(keyframe.getFocalZ());
-			client.setCameraPitchTarget(Keyframe.radiansToJau(keyframe.getPitch()));
-			client.setCameraYawTarget(Keyframe.radiansToJau(keyframe.getYaw()) % 2047);
-			client.runScript(ScriptID.CAMERA_DO_ZOOM, keyframe.getScale(), keyframe.getScale());
-		});
-	}
-
-	public boolean freeCamEnabled() { return client.getCameraMode() == 1 && client.getGameState() == GameState.LOGGED_IN; }
 	public void toggleCameraMode()
 	{
 		clientThread.invoke(() -> {
@@ -234,14 +132,14 @@ public class KeyframeCameraPlugin extends Plugin
 
 	public void wipe()
 	{
-		sequence = new Sequence(config);
+		sequence = new Sequence(client, config);
 		redrawPanel();
 	}
 
 	public void load(String name)
 	{
 		Path sequencePath = KeyframeCameraPlugin.SEQUENCE_DIR.resolve(name);
-		sequence = SequenceIO.load(sequencePath.toString(), config);
+		sequence = SequenceIO.load(sequencePath.toString(), client, config);
 
 		if (sequence == null)
 		{
@@ -255,9 +153,14 @@ public class KeyframeCameraPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onGameStateChanged(GameStateChanged event) {
-		if (panel == null) return;
-		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.LOGGED_IN) {
+	public void onGameStateChanged(GameStateChanged event)
+	{
+		if (panel == null)
+		{
+			return;
+		}
+		if (event.getGameState() == GameState.LOGIN_SCREEN || event.getGameState() == GameState.LOGGED_IN)
+		{
 			redrawPanel();
 		}
 	}
@@ -265,7 +168,10 @@ public class KeyframeCameraPlugin extends Plugin
 	@Subscribe
 	public void onGameTick(GameTick event)
 	{
-		if (client.getGameState() != GameState.LOGGED_IN) return;
+		if (client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
 		if (prevCameraMode != client.getCameraMode())
 		{
 			prevCameraMode = client.getCameraMode();
@@ -274,19 +180,41 @@ public class KeyframeCameraPlugin extends Plugin
 	}
 
 	@Subscribe
-	public void onConfigChanged(ConfigChanged event) {
-		if (event.getGroup().equals(KeyframeCameraConfig.GROUP) && (event.getKey().equals("playing") || event.getKey().equals("paused"))) {
+	public void onConfigChanged(ConfigChanged event)
+	{
+		if (event.getGroup().equals(KeyframeCameraConfig.GROUP) && (event.getKey().equals("playing") || event.getKey().equals("paused")))
+		{
 			redrawPanel();
 		}
 	}
 
-	public void redrawPanel() {
+	@Subscribe
+	public void onBeforeRender(BeforeRender event)
+	{
+		if (client.getGameState() != GameState.LOGGED_IN)
+		{
+			return;
+		}
+		if (client.getCameraMode() != 1)
+		{
+			return;
+		}
+		if (sequence == null)
+		{
+			return;
+		}
+		playback.tick();
+	}
+
+	public void redrawPanel()
+	{
 		SwingUtilities.invokeLater(() -> {
 			panel.updatePanel();
 		});
 	}
 
-	public void sendChatMessage(String message) {
+	public void sendChatMessage(String message)
+	{
 
 		if (client.getGameState() != GameState.LOGGED_IN)
 		{
@@ -304,15 +232,6 @@ public class KeyframeCameraPlugin extends Plugin
 			.type(ChatMessageType.CONSOLE)
 			.runeLiteFormattedMessage(chatMessage)
 			.build());
-	}
-
-	@Subscribe
-	public void onBeforeRender(BeforeRender event)
-	{
-		if (client.getGameState() != GameState.LOGGED_IN) return;
-		if (client.getCameraMode() != 1) return;
-		if (sequence == null) return;
-		playback.tick();
 	}
 
 	@Provides
